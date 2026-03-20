@@ -152,7 +152,7 @@ pip install flask flask-cors flask-sqlalchemy opencv-python numpy Pillow pandas 
 
 ## 👨‍💻 Author
 
-**Sonu** — MCA Student, Ram Lal Anand College, University of Delhi
+**Sonu** — MCA Student, University of Kota
 
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-0A66C2?style=flat&logo=linkedin)](https://linkedin.com/in/YOUR_PROFILE)
 [![GitHub](https://img.shields.io/badge/GitHub-Follow-181717?style=flat&logo=github)](https://github.com/YOUR_USERNAME)
