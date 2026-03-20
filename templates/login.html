@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Attendance — Login</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Courier New', monospace;
+    background: #0a0f0a;
+    color: #00ff88;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .login-card {
+    width: 380px;
+    padding: 48px 40px;
+    border: 1px solid #00ff4430;
+    background: #050a05;
+  }
+  .brand { font-size: 20px; letter-spacing: 6px; text-align: center; margin-bottom: 6px; }
+  .subtitle { font-size: 10px; color: #00ff8855; letter-spacing: 3px; text-align: center; margin-bottom: 40px; }
+  .field { margin-bottom: 22px; }
+  label { display: block; font-size: 9px; letter-spacing: 3px; color: #00ff8877; margin-bottom: 8px; text-transform: uppercase; }
+  input {
+    width: 100%; background: transparent; border: 1px solid #00ff4430;
+    color: #00ff88; padding: 11px 14px; font-family: 'Courier New', monospace;
+    font-size: 13px; outline: none; transition: border-color 0.2s;
+  }
+  input:focus { border-color: #00ff88; }
+  input::placeholder { color: #00ff8825; }
+  .btn {
+    width: 100%; padding: 12px; background: transparent;
+    border: 1px solid #00ff88; color: #00ff88;
+    font-family: 'Courier New', monospace; font-size: 13px;
+    letter-spacing: 3px; cursor: pointer; margin-top: 8px;
+    text-transform: uppercase; transition: background 0.2s;
+  }
+  .btn:hover { background: #00ff8815; }
+  .hint { margin-top: 20px; text-align: center; font-size: 10px; color: #00ff8830; letter-spacing: 1px; }
+  .error { color: #ff4444; font-size: 11px; text-align: center; margin-top: 12px; display: none; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="brand">FACE_ATTEND</div>
+  <div class="subtitle">AI Attendance System · Python</div>
+  <div class="field">
+    <label>Username</label>
+    <input type="text" id="username" placeholder="admin" autocomplete="username">
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+  </div>
+  <button class="btn" onclick="doLogin()">→ Login</button>
+  <div class="error" id="errMsg">Invalid credentials</div>
+  <div class="hint">Default: admin / admin123</div>
+</div>
+
+<script>
+async function doLogin() {
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const err = document.getElementById('errMsg');
+  err.style.display = 'none';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      err.textContent = data.error || 'Login failed';
+      err.style.display = 'block';
+    }
+  } catch(e) {
+    err.textContent = 'Connection error';
+    err.style.display = 'block';
+  }
+}
+document.addEventListener('keypress', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Face Attendance System</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{--g:#00ff88;--gd:#00ff4420;--gm:#00ff8866;--r:#ff4444;--a:#ffaa00;--b:#00aaff;--bg:#0a0f0a;--bg2:#050a05;--bg3:#0a150a;--br:#00ff4420}
+  body{font-family:'Courier New',monospace;background:var(--bg);color:var(--g);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+  /* NAV */
+  nav{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:50px;background:var(--bg2);border-bottom:1px solid var(--br);flex-shrink:0}
+  .brand{font-size:11px;letter-spacing:4px;font-weight:bold}
+  .tabs{display:flex;gap:2px}
+  .tab{padding:6px 16px;background:transparent;border:none;color:#00ff8866;font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;cursor:pointer;text-transform:uppercase;border-bottom:2px solid transparent;transition:all .2s}
+  .tab:hover,.tab.active{color:var(--g);border-bottom-color:var(--g)}
+  .btn-logout{padding:6px 12px;background:transparent;border:1px solid #ff444430;color:#ff444466;font-family:'Courier New',monospace;font-size:10px;letter-spacing:1px;cursor:pointer}
+  .btn-logout:hover{border-color:var(--r);color:var(--r)}
+  /* MAIN */
+  main{flex:1;overflow:hidden;display:flex}
+  .page{display:none;width:100%;height:100%;overflow-y:auto;padding:20px}
+  .page.active{display:flex;flex-direction:column;gap:16px}
+  /* CAMERA PAGE */
+  .cam-layout{display:grid;grid-template-columns:1fr 300px;gap:16px;height:calc(100vh - 120px)}
+  .video-col{display:flex;flex-direction:column;gap:10px}
+  .video-box{position:relative;background:#000;border:1px solid var(--br);flex:1;min-height:0;overflow:hidden}
+  #video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+  #canvas{position:absolute;top:0;left:0;width:100%;height:100%;transform:scaleX(-1)}
+  .no-cam{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#00ff8822;gap:10px;font-size:11px;letter-spacing:2px}
+  .no-cam-icon{font-size:48px;opacity:.2}
+  .det-bar{display:flex;align-items:center;gap:10px;min-height:28px;flex-shrink:0}
+  .badge{font-size:9px;padding:3px 8px;border:1px solid currentColor;letter-spacing:2px}
+  .badge.known{color:var(--g)}  .badge.unknown{color:var(--r)}  .badge.scan{color:#00ff8844}
+  .det-name{font-size:15px;font-weight:bold;letter-spacing:1px}
+  .det-conf{font-size:10px;color:#00ff8866}
+  .ctrl-row{display:flex;gap:8px;flex-shrink:0}
+  .btn{font-family:'Courier New',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;padding:9px 14px;border:1px solid currentColor;background:transparent;transition:all .2s;border-radius:2px}
+  .btn:disabled{opacity:.3;cursor:not-allowed}
+  .btn-g{color:var(--g)} .btn-g:hover:not(:disabled){background:#00ff8812}
+  .btn-g.on{background:#00ff8820}
+  .btn-b{color:var(--b);border-color:var(--b)} .btn-b:hover:not(:disabled){background:#00aaff12}
+  .btn-a{color:var(--a);border-color:var(--a)} .btn-a:hover:not(:disabled){background:#ffaa0012}
+  .btn-r{color:var(--r);border-color:var(--r)} .btn-r:hover:not(:disabled){background:#ff444412}
+  .reg-row{display:flex;gap:8px;flex-shrink:0}
+  .inp{flex:1;background:transparent;border:1px solid #00ff4430;color:var(--g);padding:9px 12px;font-family:'Courier New',monospace;font-size:12px;outline:none}
+  .inp:focus{border-color:var(--g)} .inp::placeholder{color:#00ff8825}
+  /* RIGHT PANEL */
+  .right-col{display:flex;flex-direction:column;gap:0;border:1px solid var(--br);background:var(--bg2);overflow:hidden}
+  .panel-sec{border-bottom:1px solid #00ff4415;padding:14px}
+  .panel-label{font-size:8px;letter-spacing:3px;color:#00ff8855;text-transform:uppercase;margin-bottom:10px}
+  .stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .stat{padding:10px 8px;background:var(--bg3);border:1px solid var(--br);text-align:center}
+  .stat-n{font-size:24px;font-weight:bold} .stat-l{font-size:8px;letter-spacing:2px;color:#00ff8855;margin-top:2px}
+  .stat-total .stat-n{color:var(--b)} .stat-present .stat-n{color:var(--g)} .stat-absent .stat-n{color:var(--r)} .stat-rate .stat-n{color:var(--a)}
+  /* LOG */
+  .log-box{flex:1;overflow-y:auto;padding:12px;font-size:10px;line-height:1.8;min-height:0}
+  .log-line{color:#00ff8844} .log-line.s{color:var(--g)} .log-line.w{color:var(--a)} .log-line.e{color:var(--r)} .log-line.i{color:var(--b)}
+  /* MINI ROSTER */
+  .mini-list{overflow-y:auto;max-height:180px}
+  .mini-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #00ff4410}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#00ff4415;border:1px solid #00ff4025;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0}
+  .mini-name{flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .p-badge{font-size:8px;padding:2px 5px;border-radius:2px;letter-spacing:1px;flex-shrink:0}
+  .pb-p{background:#00ff4415;color:var(--g)} .pb-a{background:#ff444415;color:var(--r)}
+  /* ROSTER PAGE */
+  .page-hdr{display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+  .page-title{font-size:13px;letter-spacing:3px;text-transform:uppercase}
+  .hdr-btns{display:flex;gap:8px;align-items:center}
+  .date-inp{background:transparent;border:1px solid #00ff4430;color:var(--g);padding:7px 10px;font-family:'Courier New',monospace;font-size:11px;outline:none}
+  .tbl-wrap{overflow:auto;flex:1}
+  table{width:100%;border-collapse:collapse}
+  th{padding:9px 12px;text-align:left;font-size:8px;letter-spacing:2px;color:#00ff8855;border-bottom:1px solid var(--br);font-weight:normal;text-transform:uppercase}
+  td{padding:9px 12px;border-bottom:1px solid #00ff4408;font-size:12px}
+  tr:hover td{background:#00ff4406}
+  .td-name{display:flex;align-items:center;gap:10px}
+  .status-p{color:var(--g)} .status-a{color:#888}
+  /* DASHBOARD */
+  .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;flex:1}
+  .chart-card{background:var(--bg2);border:1px solid var(--br);padding:16px}
+  .chart-title{font-size:8px;letter-spacing:3px;color:#00ff8855;margin-bottom:12px;text-transform:uppercase}
+  canvas.chart{width:100%!important}
+  /* PROGRESS */
+  .prog-wrap{margin-top:6px}
+  .prog-bar{height:2px;background:#00ff4415;border-radius:1px;overflow:hidden}
+  .prog-fill{height:100%;background:var(--g);transition:width .3s}
+  .prog-txt{font-size:10px;color:#00ff8866;margin-top:4px;letter-spacing:1px}
+  /* TOAST */
+  #toast{position:fixed;bottom:24px;right:24px;padding:12px 20px;border:1px solid var(--g);background:var(--bg3);font-size:12px;letter-spacing:1px;transform:translateY(100px);opacity:0;transition:all .3s;z-index:999}
+  #toast.show{transform:translateY(0);opacity:1}
+  #toast.err{border-color:var(--r);color:var(--r)}
+  /* scrollbar */
+  ::-webkit-scrollbar{width:3px;height:3px} ::-webkit-scrollbar-thumb{background:#00ff4425}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">FACE_ATTEND / PY</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showPage('camera',this)">◉ Camera</button>
+    <button class="tab" onclick="showPage('roster',this)">≡ Roster</button>
+    <button class="tab" onclick="showPage('dashboard',this)">▦ Dashboard</button>
+  </div>
+  <button class="btn-logout" onclick="doLogout()">Logout</button>
+</nav>
+
+<main>
+<!-- ═══════════════ CAMERA PAGE ═══════════════ -->
+<div class="page active" id="page-camera">
+  <div class="cam-layout">
+    <div class="video-col">
+      <div class="video-box">
+        <div class="no-cam" id="noCam"><div class="no-cam-icon">◉</div><span>CAMERA OFFLINE</span></div>
+        <video id="video" autoplay muted playsinline></video>
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="det-bar" id="detBar">
+        <span class="badge scan">NO SIGNAL</span>
+      </div>
+      <div class="ctrl-row">
+        <button class="btn btn-g" id="btnCam" onclick="toggleCamera()">▶ Start Camera</button>
+        <button class="btn btn-b" id="btnMark" onclick="markAttend()" disabled>✓ Mark Attend</button>
+        <button class="btn btn-a" id="btnEnroll" onclick="enrollFace()" disabled>+ Enroll Face</button>
+      </div>
+      <div class="reg-row">
+        <input class="inp" id="regName" placeholder="Student name to enroll..." />
+        <input class="inp" style="flex:0;width:140px" id="regRoll" placeholder="Roll no (optional)" />
+        <button class="btn btn-a" onclick="addAndEnroll()">+ Add & Enroll</button>
+      </div>
+      <div class="prog-wrap" id="progWrap" style="display:none">
+        <div class="prog-bar"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+        <div class="prog-txt" id="progTxt">Capturing face samples...</div>
+      </div>
+    </div>
+
+    <div class="right-col">
+      <div class="panel-sec">
+        <div class="panel-label">Today's Stats</div>
+        <div class="stats-grid">
+          <div class="stat stat-total"><div class="stat-n" id="sTotal">0</div><div class="stat-l">Total</div></div>
+          <div class="stat stat-present"><div class="stat-n" id="sPresent">0</div><div class="stat-l">Present</div></div>
+          <div class="stat stat-absent"><div class="stat-n" id="sAbsent">0</div><div class="stat-l">Absent</div></div>
+          <div class="stat stat-rate"><div class="stat-n" id="sRate">0%</div><div class="stat-l">Rate</div></div>
+        </div>
+      </div>
+      <div class="panel-sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
+        <div class="panel-label">Students</div>
+        <div class="mini-list" id="miniList"></div>
+      </div>
+      <div class="panel-sec" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:140px">
+        <div class="panel-label">System Log</div>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ROSTER PAGE ═══════════════ -->
+<div class="page" id="page-roster">
+  <div class="page-hdr">
+    <div class="page-title">Student Roster</div>
+    <div class="hdr-btns">
+      <input type="date" class="date-inp" id="rosterDate" value="">
+      <button class="btn btn-g" onclick="loadRoster()">↺ Load</button>
+      <button class="btn btn-g" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+  </div>
+  <div class="stats-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0">
+    <div class="stat stat-total"><div class="stat-n" id="rTotal">0</div><div class="stat-l">Total</div></div>
+    <div class="stat stat-present"><div class="stat-n" id="rPresent">0</div><div class="stat-l">Present</div></div>
+    <div class="stat stat-absent"><div class="stat-n" id="rAbsent">0</div><div class="stat-l">Absent</div></div>
+    <div class="stat stat-rate"><div class="stat-n" id="rRate">0%</div><div class="stat-l">Rate</div></div>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr><th>#</th><th>Name</th><th>Roll No</th><th>Status</th><th>Time In</th><th>Action</th></tr></thead>
+      <tbody id="rosterBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════ DASHBOARD PAGE ═══════════════ -->
+<div class="page" id="page-dashboard">
+  <div class="page-hdr">
+    <div class="page-title">Dashboard</div>
+    <button class="btn btn-g" onclick="loadDashboard()">↺ Refresh</button>
+  </div>
+  <div class="dash-grid">
+    <div class="chart-card" style="grid-column:span 2">
+      <div class="chart-title">Weekly Attendance (Last 7 Days)</div>
+      <canvas class="chart" id="barChart" height="180"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Today's Breakdown</div>
+      <canvas class="chart" id="pieChart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Attendance Trend</div>
+      <canvas class="chart" id="lineChart" height="200"></canvas>
+    </div>
+  </div>
+</div>
+</main>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ─── State ───────────────────────────────────────────────
+let camStream = null, detectInterval = null;
+let currentFace = null, currentStudentId = null;
+let enrollingId = null;
+let barChart = null, pieChart = null, lineChart = null;
+
+// ─── Utils ───────────────────────────────────────────────
+function log(msg, type='') {
+  const box = document.getElementById('logBox');
+  const t = new Date().toLocaleTimeString('en',{hour12:false});
+  const d = document.createElement('div');
+  d.className = 'log-line' + (type ? ' '+type : '');
+  d.textContent = `[${t}] ${msg}`;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+}
+
+function toast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (err ? ' err' : '');
+  setTimeout(() => t.className = '', 3000);
+}
+
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'roster') loadRoster();
+  if (id === 'dashboard') loadDashboard();
+}
+
+// ─── Camera ──────────────────────────────────────────────
+async function toggleCamera() {
+  if (camStream) { stopCamera(); return; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+    const video = document.getElementById('video');
+    video.srcObject = camStream;
+    video.onloadedmetadata = () => {
+      const canvas = document.getElementById('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+    };
+    document.getElementById('noCam').style.display = 'none';
+    document.getElementById('btnCam').textContent = '⏹ Stop Camera';
+    document.getElementById('btnCam').classList.add('on');
+    document.getElementById('btnMark').disabled = false;
+    document.getElementById('btnEnroll').disabled = false;
+    log('Camera started', 's');
+    startDetect();
+  } catch(e) {
+    log('Camera error: ' + e.message, 'e');
+    toast('Camera permission required!', true);
+  }
+}
+
+function stopCamera() {
+  if (camStream) camStream.getTracks().forEach(t => t.stop());
+  camStream = null;
+  clearInterval(detectInterval);
+  document.getElementById('noCam').style.display = 'flex';
+  document.getElementById('btnCam').textContent = '▶ Start Camera';
+  document.getElementById('btnCam').classList.remove('on');
+  document.getElementById('btnMark').disabled = true;
+  document.getElementById('btnEnroll').disabled = true;
+  document.getElementById('canvas').getContext('2d').clearRect(0,0,9999,9999);
+  document.getElementById('detBar').innerHTML = '<span class="badge scan">NO SIGNAL</span>';
+  currentFace = null; currentStudentId = null;
+  log('Camera stopped', 'w');
+}
+
+function startDetect() {
+  detectInterval = setInterval(async () => {
+    const video = document.getElementById('video');
+    if (!video.videoWidth) return;
+
+    // Capture frame
+    const tmpCanvas = document.createElement('canvas');
+    tmpCanvas.width = video.videoWidth;
+    tmpCanvas.height = video.videoHeight;
+    tmpCanvas.getContext('2d').drawImage(video, 0, 0);
+    const imageData = tmpCanvas.toDataURL('image/jpeg', 0.7);
+
+    try {
+      const res = await fetch('/api/recognize', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({image: imageData})
+      });
+      const data = await res.json();
+      drawBoxes(data.faces || []);
+
+      if (data.faces && data.faces.length > 0) {
+        const best = data.faces[0];
+        if (best.name !== 'Unknown') {
+          currentFace = best.name;
+          currentStudentId = best.student_id;
+          document.getElementById('detBar').innerHTML =
+            `<span class="badge known">DETECTED</span>
+             <span class="det-name">${best.name.toUpperCase()}</span>
+             <span class="det-conf">${best.confidence}% match</span>`;
+        } else {
+          currentFace = null; currentStudentId = null;
+          document.getElementById('detBar').innerHTML =
+            '<span class="badge unknown">UNKNOWN FACE</span><span style="font-size:11px;color:#ff444488;margin-left:8px">Enroll this person first</span>';
+        }
+      } else {
+        currentFace = null; currentStudentId = null;
+        document.getElementById('detBar').innerHTML = '<span class="badge scan">SCANNING...</span>';
+      }
+    } catch(e) {}
+  }, 800); // 800ms interval — adjust for speed vs server load
+}
+
+function drawBoxes(faces) {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  faces.forEach(f => {
+    const {top, right, bottom, left} = f.box;
+    const known = f.name !== 'Unknown';
+    const color = known ? '#00ff88' : '#ff4444';
+    const w = right - left, h = bottom - top;
+
+    // Mirror X (because video is mirrored)
+    const ml = canvas.width - right;
+    const mr = canvas.width - left;
+
+    ctx.strokeStyle = color + '66';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(ml, top, w, h);
+
+    // Corners
+    const cs = 14;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.5;
+    [[ml,top,1,1],[mr,top,-1,1],[ml,bottom,1,-1],[mr,bottom,-1,-1]].forEach(([cx,cy,dx,dy]) => {
+      ctx.beginPath(); ctx.moveTo(cx+dx*cs,cy); ctx.lineTo(cx,cy); ctx.lineTo(cx,cy+dy*cs); ctx.stroke();
+    });
+
+    // Label
+    ctx.fillStyle = color + '22';
+    ctx.fillRect(ml, top-26, w, 26);
+    ctx.fillStyle = color;
+    ctx.font = 'bold 11px Courier New';
+    ctx.fillText(known ? `${f.name.toUpperCase()}  ${f.confidence}%` : 'UNKNOWN', ml+6, top-8);
+  });
+}
+
+// ─── Enrollment ──────────────────────────────────────────
+async function addAndEnroll() {
+  const name = document.getElementById('regName').value.trim();
+  const roll = document.getElementById('regRoll').value.trim();
+  if (!name) { toast('Enter a name first!', true); return; }
+  if (!camStream) { toast('Start camera first!', true); return; }
+
+  // Create student first
+  try {
+    const res = await fetch('/api/students', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({name, roll_no: roll || null})
+    });
+    const data = await res.json();
+    if (!res.ok) { toast(data.error, true); return; }
+    enrollingId = data.id;
+    log(`Created student: ${name}`, 'i');
+    await captureAndEnroll(enrollingId, name);
+    document.getElementById('regName').value = '';
+    document.getElementById('regRoll').value = '';
+    loadStudents();
+  } catch(e) { toast('Error: '+e.message, true); }
+}
+
+async function enrollFace() {
+  if (!currentStudentId) { toast('No recognized student in frame', true); return; }
+  await captureAndEnroll(currentStudentId, currentFace);
+}
+
+async function captureAndEnroll(sid, name) {
+  const video = document.getElementById('video');
+  if (!video.videoWidth) { toast('Camera not ready', true); return; }
+
+  const prog = document.getElementById('progWrap');
+  const fill = document.getElementById('progFill');
+  const txt = document.getElementById('progTxt');
+  prog.style.display = 'block';
+
+  let success = 0;
+  for (let i = 0; i < 5; i++) {
+    txt.textContent = `Capturing sample ${i+1}/5 — look at camera`;
+    fill.style.width = `${(i/5)*100}%`;
+
+    const tmp = document.createElement('canvas');
+    tmp.width = video.videoWidth; tmp.height = video.videoHeight;
+    tmp.getContext('2d').drawImage(video, 0, 0);
+    const img = tmp.toDataURL('image/jpeg', 0.9);
+
+    try {
+      const res = await fetch(`/api/students/${sid}/enroll`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({image: img})
+      });
+      const data = await res.json();
+      if (res.ok) success++;
+      else txt.textContent = `Sample ${i+1}: ${data.error} — retrying...`;
+    } catch(e) {}
+
+    await new Promise(r => setTimeout(r, 600));
+  }
+
+  fill.style.width = '100%';
+  prog.style.display = 'none';
+
+  if (success > 0) {
+    toast(`✅ ${name} enrolled (${success}/5 samples captured)`);
+    log(`${name} enrolled with ${success} samples`, 's');
+  } else {
+    toast('Enrollment failed — check lighting and face position', true);
+    log(`Enrollment failed for ${name}`, 'e');
+  }
+}
+
+// ─── Mark Attendance ─────────────────────────────────────
+async function markAttend() {
+  if (!currentStudentId) { toast('No recognized face!', true); return; }
+  try {
+    const res = await fetch('/api/attendance/mark', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({student_id: currentStudentId, method:'face'})
+    });
+    const data = await res.json();
+    if (res.ok) {
+      toast(data.message);
+      log(data.message, 's');
+      loadStats();
+      loadStudents();
+    } else {
+      toast(data.error, true);
+    }
+  } catch(e) { toast('Error: '+e.message, true); }
+}
+
+// ─── Load Students ───────────────────────────────────────
+async function loadStudents() {
+  try {
+    const res = await fetch('/api/students');
+    const students = await res.json();
+    const list = document.getElementById('miniList');
+    list.innerHTML = students.length === 0
+      ? '<div style="text-align:center;color:#00ff8825;padding:16px;font-size:11px;letter-spacing:1px">No students registered yet</div>'
+      : students.map(s => `
+          <div class="mini-item">
+            <div class="avatar">${s.name.slice(0,2).toUpperCase()}</div>
+            <div class="mini-name">${s.name}</div>
+            <span class="p-badge ${s.present_today?'pb-p':'pb-a'}">${s.present_today?'P':'A'}</span>
+          </div>`).join('');
+  } catch(e) {}
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/attendance/stats');
+    const d = await res.json();
+    document.getElementById('sTotal').textContent = d.total;
+    document.getElementById('sPresent').textContent = d.present_today;
+    document.getElementById('sAbsent').textContent = d.absent_today;
+    document.getElementById('sRate').textContent = d.rate + '%';
+  } catch(e) {}
+}
+
+// ─── Roster Page ─────────────────────────────────────────
+async function loadRoster() {
+  const date = document.getElementById('rosterDate').value || new Date().toISOString().split('T')[0];
+  try {
+    const res = await fetch(`/api/attendance/report?date=${date}`);
+    const rows = await res.json();
+    const body = document.getElementById('rosterBody');
+    const present = rows.filter(r => r.status === 'Present').length;
+    const total = rows.length;
+
+    document.getElementById('rTotal').textContent = total;
+    document.getElementById('rPresent').textContent = present;
+    document.getElementById('rAbsent').textContent = total - present;
+    document.getElementById('rRate').textContent = total ? Math.round(present/total*100)+'%' : '0%';
+
+    body.innerHTML = rows.map((r,i) => `
+      <tr class="${r.status==='Present'?'status-p':'status-a'}">
+        <td style="color:#00ff8844">${i+1}</td>
+        <td><div class="td-name"><div class="avatar" style="width:26px;height:26px;font-size:9px">${r.name.slice(0,2).toUpperCase()}</div>${r.name}</div></td>
+        <td style="color:#00ff8866;font-size:11px">${r.roll_no}</td>
+        <td><span class="p-badge ${r.status==='Present'?'pb-p':'pb-a'}" style="padding:3px 8px">${r.status==='Present'?'✓ Present':'✗ Absent'}</span></td>
+        <td style="color:#00ff8866;font-size:11px">${r.time_in}</td>
+        <td><button class="btn btn-r" style="padding:3px 8px;font-size:9px" onclick="deleteStudent(${r.student_id},'${r.name}')">✕</button></td>
+      </tr>`).join('');
+  } catch(e) { toast('Failed to load roster', true); }
+}
+
+async function deleteStudent(id, name) {
+  if (!confirm(`Remove ${name} from the system?`)) return;
+  await fetch(`/api/students/${id}`, {method:'DELETE'});
+  toast(`${name} removed`);
+  loadRoster(); loadStudents(); loadStats();
+}
+
+async function exportCSV() {
+  const date = document.getElementById('rosterDate').value || new Date().toISOString().split('T')[0];
+  window.location.href = `/api/attendance/export?date=${date}`;
+}
+
+// ─── Dashboard ───────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const res = await fetch('/api/attendance/stats');
+    const d = await res.json();
+
+    const labels = d.trend.map(t => t.day);
+    const present = d.trend.map(t => t.present);
+    const absent = d.trend.map(t => t.absent);
+
+    const chartOpts = {
+      plugins:{legend:{labels:{color:'#00ff8866',font:{family:'Courier New',size:10}}}},
+      scales:{x:{ticks:{color:'#00ff8866',font:{family:'Courier New',size:10}},grid:{color:'#00ff4410'}},
+              y:{ticks:{color:'#00ff8844',font:{family:'Courier New',size:10}},grid:{color:'#00ff4410'}}},
+    };
+
+    if (barChart) barChart.destroy();
+    barChart = new Chart(document.getElementById('barChart'), {
+      type:'bar',
+      data:{labels,datasets:[
+        {label:'Present',data:present,backgroundColor:'#00ff8840',borderColor:'#00ff88',borderWidth:1,borderRadius:3},
+        {label:'Absent',data:absent,backgroundColor:'#ff444430',borderColor:'#ff4444',borderWidth:1,borderRadius:3}
+      ]},
+      options:{...chartOpts,responsive:true,maintainAspectRatio:true}
+    });
+
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(document.getElementById('pieChart'), {
+      type:'doughnut',
+      data:{labels:['Present','Absent'],datasets:[{
+        data:[d.present_today, d.absent_today],
+        backgroundColor:['#00ff8844','#ff444433'],
+        borderColor:['#00ff88','#ff4444'],borderWidth:1
+      }]},
+      options:{plugins:{legend:{labels:{color:'#00ff8866',font:{family:'Courier New',size:10}}}},cutout:'60%',responsive:true,maintainAspectRatio:true}
+    });
+
+    if (lineChart) lineChart.destroy();
+    lineChart = new Chart(document.getElementById('lineChart'), {
+      type:'line',
+      data:{labels,datasets:[{
+        label:'Present',data:present,borderColor:'#00ff88',backgroundColor:'#00ff8815',
+        borderWidth:2,pointBackgroundColor:'#00ff88',pointRadius:4,fill:true,tension:0.3
+      }]},
+      options:{...chartOpts,responsive:true,maintainAspectRatio:true}
+    });
+
+  } catch(e) { toast('Failed to load dashboard', true); }
+}
+
+// ─── Logout ──────────────────────────────────────────────
+async function doLogout() {
+  await fetch('/api/logout', {method:'POST'});
+  window.location.href = '/login';
+}
+
+// ─── Init ────────────────────────────────────────────────
+document.getElementById('rosterDate').value = new Date().toISOString().split('T')[0];
+log('System ready', 's');
+log('Click "Start Camera" to begin', 'i');
+loadStudents();
+loadStats();
+</script>
+</body>
+</html>
